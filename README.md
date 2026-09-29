@@ -31,7 +31,6 @@ All screenshots show generated demo data (a fictional company with invented peop
 | Screenshot | Description |
 |------------|-------------|
 | ![Timeline view in the dark theme](docs/screenshots/timeline-dark.png) | Timeline in the dark theme. |
-| ![Overview page with KPI cards and charts for utilization, top projects, billability and top utilization](docs/screenshots/overview-light.png) | Overview page with KPIs and charts (super users only). |
 | ![Weekly comparison dialog for one person showing booked versus planned hours for three calendar weeks](docs/screenshots/user-week-light.png) | Weekly dialog for one person: booked versus planned hours for the last three calendar weeks. |
 | ![Login page with email and password fields](docs/screenshots/login.png) | Login page. |
 
