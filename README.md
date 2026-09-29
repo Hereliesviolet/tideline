@@ -4,8 +4,7 @@
 
 Tideline is a web app that shows who is booked and planned on what, per person and per day, using time-tracking data from MOCO.
 
-<!-- TODO: add a screenshot of the timeline view, e.g. docs/images/timeline.png -->
-_Screenshot: TODO._
+![Timeline view in the light theme: one row per person, booked hours for past days on the left and planned project bars for the coming days on the right](docs/screenshots/timeline-light.png)
 
 ## Features
 
@@ -24,6 +23,17 @@ _Screenshot: TODO._
 The UI text and the emails are in German.
 
 MOCO is a third-party SaaS (mocoapp.com). You need your own account and API token. This project is not affiliated with MOCO.
+
+## Screenshots
+
+All screenshots show generated demo data (a fictional company with invented people, customers and projects). The UI is in German.
+
+| Screenshot | Description |
+|------------|-------------|
+| ![Timeline view in the dark theme](docs/screenshots/timeline-dark.png) | Timeline in the dark theme. |
+| ![Overview page with KPI cards and charts for utilization, top projects, billability and top utilization](docs/screenshots/overview-light.png) | Overview page with KPIs and charts (super users only). |
+| ![Weekly comparison dialog for one person showing booked versus planned hours for three calendar weeks](docs/screenshots/user-week-light.png) | Weekly dialog for one person: booked versus planned hours for the last three calendar weeks. |
+| ![Login page with email and password fields](docs/screenshots/login.png) | Login page. |
 
 ## Tech stack
 
