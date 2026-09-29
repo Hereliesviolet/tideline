@@ -1,0 +1,95 @@
+name: capacity-timeline
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: capacity-timeline-db
+    environment:
+      POSTGRES_USER: capacity
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: capacity
+    volumes:
+      - ./db/data:/var/lib/postgresql/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: capacity-timeline-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - ./redis/data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    container_name: capacity-timeline-worker
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    env_file:
+      - ./worker/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./avatars:/app/avatars
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9100/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Internal app proxy: rate limits, security headers, SPA, avatars.
+  # Serves plain HTTP on 8080 and binds to localhost only. Put a TLS-terminating
+  # reverse proxy in front of it for anything beyond local use.
+  proxy:
+    container_name: capacity-timeline-proxy
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      worker:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/logs:/var/log/caddy
+      - ./dashboard/dist:/usr/share/caddy:ro
+      - ./avatars:/avatars:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  caddy_data:
+  caddy_config:

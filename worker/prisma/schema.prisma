@@ -1,0 +1,370 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SyncState {
+  id        String   @id @default(cuid())
+  resource  String   @unique
+  cursor    DateTime?
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id          Int      @id          // MOCO User-ID
+  firstname   String?
+  lastname    String?
+  email       String?
+  title       String?              // Job-Titel
+  avatar      String?              // Avatar URL
+  phone       String?              // Telefonnummer
+  mobilePhone String?              // Mobiltelefon
+  office      String?              // Büro/Standort
+  unitId      Int?                 // Unit/Team ID
+  unitName    String?              // Unit/Team Name
+  archived    Boolean? @default(false)
+  createdAt   DateTime?
+  updatedAt   DateTime?
+  Activities   Activity[]
+  Planning     PlanningEntry[]
+  Schedules    Schedule[]
+  Employments  Employment[]
+  Holidays     UserHoliday[]
+  Presences    UserPresence[]
+  WorkTimeAdjustments WorkTimeAdjustment[]
+  DashboardUser DashboardUser?
+}
+
+model Project {
+  id           Int      @id        // MOCO Project-ID
+  identifier   String?
+  name         String
+  customerId   Int?                 // Kunden ID
+  customerName String?
+  leaderId     Int?                 // Projektleiter ID
+  leaderName   String?              // Projektleiter Name
+  color        String?
+  billable     Boolean?
+  internal     Boolean?
+  budget       Float?               // Budget
+  budgetSpent  Float?               // Verbrauchtes Budget
+  currency     String?             // Währung
+  startDate    DateTime?           // Startdatum
+  finishDate   DateTime?           // Enddatum
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  Activities   Activity[]
+  Planning     PlanningEntry[]
+  Tasks        Task[]
+  Expenses     ProjectExpense[]
+  PaymentSchedules ProjectPaymentSchedule[]
+  Contracts    ProjectContract[]
+  customer     Company? @relation(fields: [customerId], references: [id])
+}
+
+model Activity { // IST (Zeiteinträge)
+  id              Int      @id
+  date            DateTime
+  hours           Float?
+  seconds         Int?
+  workedSeconds   Int?
+  billable        Boolean?
+  description     String?
+  userId          Int
+  projectId       Int?
+  taskId          Int?
+  updatedAt       DateTime?
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+  task    Task?   @relation(fields: [taskId], references: [id])
+
+  @@index([userId, date])
+  @@index([projectId, date])
+  @@index([taskId, date])
+}
+
+model PlanningEntry { // PLAN
+  id            Int      @id
+  startsOn      DateTime
+  endsOn        DateTime
+  hoursPerDay   Float?
+  tentative     Boolean?
+  color         String?
+  userId        Int
+  projectId     Int?
+  taskId        Int?
+  updatedAt     DateTime?
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+  task    Task?   @relation(fields: [taskId], references: [id])
+
+  @@index([userId, startsOn, endsOn])
+  @@index([projectId, startsOn, endsOn])
+  @@index([taskId, startsOn, endsOn])
+  @@index([endsOn])
+}
+
+model Schedule { // Abwesenheiten (Urlaub, Krankheit, etc.)
+  id           Int      @id
+  date         DateTime
+  absenceCode  String   // z.B. "VACATION", "SICK", "HOLIDAY"
+  am           Boolean? // Vormittag
+  pm           Boolean? // Nachmittag
+  userId       Int
+  updatedAt    DateTime?
+
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+  @@unique([userId, date, absenceCode])
+}
+
+model Company { // Kunden/Lieferanten
+  id          Int      @id
+  name        String
+  type        String?  // "customer", "supplier", etc.
+  website     String?
+  phone       String?
+  email       String?
+  address     String?
+  archived    Boolean? @default(false)
+  createdAt   DateTime?
+  updatedAt   DateTime?
+  Projects    Project[]
+  Contacts    Contact[]
+
+  @@index([archived])
+}
+
+model Task { // Aufgaben innerhalb von Projekten
+  id           Int      @id
+  name         String
+  projectId    Int?
+  billable     Boolean?
+  active       Boolean? @default(true)
+  budget       Float?
+  budgetSpent  Float?
+  createdAt    DateTime?
+  updatedAt    DateTime?
+
+  project      Project? @relation(fields: [projectId], references: [id])
+  Activities   Activity[]
+  Planning     PlanningEntry[]
+
+  @@index([projectId])
+  @@index([active])
+}
+
+model UserHoliday { // Urlaubszeiten pro Jahr
+  id           Int      @id
+  year         Int
+  total        Float?   // Gesamturlaubstage
+  used         Float?   // Verbrauchte Tage
+  remaining    Float?   // Verbleibende Tage
+  userId       Int
+  createdAt    DateTime?
+  updatedAt    DateTime?
+
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, year])
+  @@unique([userId, year])
+}
+
+model Employment { // Arbeitszeitmodelle
+  id                Int      @id
+  userId            Int
+  weeklyTargetHours Float?
+  patternAm         String?  // JSON: [1,1,1,1,1] für Mo-Fr
+  patternPm         String?  // JSON: [1,1,1,1,1] für Mo-Fr
+  fromDate          DateTime
+  toDate            DateTime?
+  createdAt         DateTime?
+  updatedAt         DateTime?
+
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, fromDate])
+}
+
+model Tag { // Labels/Tags
+  id           Int      @id
+  name         String   @unique
+  color        String?
+  createdAt    DateTime?
+  updatedAt    DateTime?
+}
+
+model Contact { // Kontakte
+  id           Int      @id
+  firstname    String?
+  lastname     String?
+  email        String?
+  phone        String?
+  mobilePhone  String?
+  companyId    Int?
+  archived     Boolean? @default(false)
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  
+  company      Company? @relation(fields: [companyId], references: [id])
+  
+  @@index([companyId])
+  @@index([archived])
+}
+
+model UserPresence { // Anwesenheitszeiten
+  id           Int      @id
+  date         DateTime
+  from         String?  // HH:mm
+  to           String?  // HH:mm
+  userId       Int
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  
+  user         User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId, date])
+  @@unique([userId, date])
+}
+
+model WorkTimeAdjustment { // Arbeitszeitanpassungen
+  id           Int      @id
+  date         DateTime
+  hours        Float?
+  comment      String?
+  userId       Int
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  
+  user         User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId, date])
+}
+
+model ProjectExpense { // Projektausgaben
+  id           Int      @id
+  date         DateTime
+  description  String?
+  gross        Float?
+  net          Float?
+  vat          Float?
+  currency     String?
+  billable     Boolean?
+  projectId    Int?
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  
+  project      Project? @relation(fields: [projectId], references: [id])
+  
+  @@index([projectId, date])
+}
+
+model ProjectPaymentSchedule { // Zahlungspläne
+  id           Int      @id
+  invoiceDate  DateTime?
+  dueDate      DateTime?
+  net          Float?
+  gross        Float?
+  currency     String?
+  projectId    Int?
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  
+  project      Project? @relation(fields: [projectId], references: [id])
+  
+  @@index([projectId])
+}
+
+model ProjectGroup { // Projektgruppen
+  id           Int      @id
+  name         String
+  createdAt    DateTime?
+  updatedAt    DateTime?
+}
+
+model ProjectContract { // Projektverträge
+  id           Int      @id
+  name         String?
+  projectId    Int?
+  createdAt    DateTime?
+  updatedAt    DateTime?
+  
+  project      Project? @relation(fields: [projectId], references: [id])
+  
+  @@index([projectId])
+}
+
+model Unit { // Teams/Units
+  id           Int      @id
+  name         String
+  createdAt    DateTime?
+  updatedAt    DateTime?
+}
+
+model DashboardUser { // Dashboard-Benutzer (basierend auf MOCO-User)
+  id                String   @id @default(cuid())
+  mocoUserId        Int      @unique // Referenz zu MOCO User
+  email             String   @unique
+  passwordHash      String
+  name              String
+  teamLevel         Int      // 0-7: Prakti/Werki bis Partner
+  mocoUnitName      String?
+  active            Boolean  @default(true) // Dashboard-Zugang aktiv/inaktiv
+  timelineActive    Boolean  @default(true) // In Timeline anzeigen (ja/nein)
+  superUser         Boolean  @default(false) // Super User (SU) - hat vollen Admin-Zugriff
+  lastLoginAt       DateTime? // Letzter Login-Zeitpunkt
+  sessionStartAt    DateTime? // Aktueller Session-Start (gesetzt bei 2FA-Verify, gelöscht bei Logout)
+  lastActivityAt    DateTime? // Letzte Aktivität (für Online-Status, Heartbeat)
+  lastSessionDuration Int?    // Letzte Session-Dauer in Sekunden
+  totalSessionTime  Int      @default(0) // Gesamtzeit im Dashboard (kumulativ in Sekunden)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  invitedAt         DateTime?
+
+  mocoUser          User?    @relation(fields: [mocoUserId], references: [id])
+
+  @@index([email])
+  @@index([teamLevel])
+  @@index([active])
+  @@index([timelineActive])
+  @@index([superUser])
+  @@index([lastActivityAt])
+}
+
+model PendingLogin { // Temporäre Login-Session für 2FA
+  id           String   @id @default(cuid())
+  token        String   @unique // pending_login_token
+  email        String
+  codeHash     String   // Gehashtes 2FA-Code
+  codeAttempts Int      @default(0) // Fehlversuche beim Code-Eingeben (max 5)
+  resendCount  Int      @default(0) // Anzahl der Resend-Anfragen (max 3)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model Invitation { // Einladungen für neue Dashboard-User
+  id           String   @id @default(cuid())
+  token        String   @unique
+  email        String
+  mocoUserId   Int
+  teamLevel    Int
+  expiresAt    DateTime
+  used         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
+  @@index([used])
+  @@index([expiresAt])
+}

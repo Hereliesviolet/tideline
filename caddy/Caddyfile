@@ -1,0 +1,87 @@
+{
+    order rate_limit before basic_auth
+
+    # Requests arrive from a TLS-terminating proxy in front of this one (private
+    # address range). Its X-Forwarded-For header provides the real client IP for
+    # {client_ip}, logs and rate limits. Do not expose this Caddy directly.
+    servers {
+        trusted_proxies static private_ranges
+    }
+}
+
+(app) {
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self';"
+        -Server
+        -X-Powered-By
+    }
+
+    @login path /api/auth/login*
+    rate_limit @login {
+        zone auth_login {
+            key {client_ip}
+            events 5
+            window 1m
+        }
+    }
+
+    # Avatars (/api/avatars/*) are static, long-cached images and are requested
+    # dozens at a time when a user list renders. They must not count against the
+    # API rate limit, otherwise later data requests (e.g. /api/admin/*) get a 429.
+    @api {
+        path /api/*
+        not path /api/avatars/*
+    }
+    rate_limit @api {
+        zone api_general {
+            key {client_ip}
+            events 600
+            window 1m
+        }
+    }
+
+    @avatar path_regexp avatar ^/api/avatars/(\d+)$
+    handle @avatar {
+        root * /avatars
+        rewrite * /{re.avatar.1}.png
+        header Cache-Control "public, max-age=604800, immutable"
+        file_server
+    }
+
+    handle /api/* {
+        reverse_proxy worker:9100
+    }
+
+    handle /moco/* {
+        reverse_proxy worker:9100
+    }
+
+    handle {
+        root * /usr/share/caddy
+        @assets path /assets/*
+        header @assets Cache-Control "public, max-age=31536000, immutable"
+        @html path /index.html
+        header @html Cache-Control "no-cache, no-store, must-revalidate"
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+:8080 {
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+    }
+
+    import app
+}

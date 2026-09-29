@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+*.tsbuildinfo
+coverage/
+
+# Environment files (never commit real values)
+.env
+.env.*
+!.env.example
+worker/.env
+
+# Logs
+*.log
+caddy/logs/
+npm-debug.log*
+
+# Runtime data (local): Postgres, Redis, cached MOCO avatars
+db/
+redis/
+avatars/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local AI-tool and editor configuration
+.cursor/
+.cursorrules
+.claude/
+CLAUDE.md
+mcp.json
+*.local
+dump.rdb
